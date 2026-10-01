@@ -27,6 +27,7 @@ class GameEngine:
         self.frames_until_spawn = 0
         self.game_over = False
         self.distance = 0  # pixels travelled
+        self.shield_active = False
 
     def _spawn_obstacle(self):
         margin = 60
@@ -41,8 +42,11 @@ class GameEngine:
             self.helicopter.handle_input(keys_pressed)
 
     def handle_keydown(self, key):
-        if self.game_over and key == pygame.K_r:
-            self.reset()
+        if self.game_over:
+            if key == pygame.K_r:
+                self.reset()
+        elif key == pygame.K_SPACE:
+            self.shield_active = True
 
     def _hits_obstacle(self, obstacle):
         rect = self.helicopter.get_rect()
@@ -68,13 +72,22 @@ class GameEngine:
 
         for obstacle in self.obstacles:
             if self._hits_obstacle(obstacle):
-                self.game_over = True
+                if self.shield_active:
+                    self.shield_active = False  # shield absorbs exactly one hit
+                    self.obstacles.remove(obstacle)
+                else:
+                    self.game_over = True
+                break
 
     def draw(self, surface, font):
         from game import renderer
-        renderer.draw_scene(surface, self.helicopter, self.obstacles)
+        renderer.draw_scene(surface, self.helicopter, self.obstacles, self.shield_active)
         metres = self.distance // PIXELS_PER_METRE
         renderer.draw_text(surface, font, f"Distance: {metres} m", (10, 10))
+        if self.shield_active:
+            renderer.draw_text(surface, font, "SHIELD ON", (10, 36), renderer.COLOR_SHIELD)
+        else:
+            renderer.draw_text(surface, font, "Shield: press SPACE", (10, 36))
         if self.game_over:
             renderer.draw_banner(surface, font, f"GAME OVER - final distance: {metres} m")
             renderer.draw_text(surface, font, "Press R to restart", (WIDTH // 2 - 90, HEIGHT // 2 + 30))
